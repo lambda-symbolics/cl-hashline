@@ -1,0 +1,143 @@
+#+title: cl-hashline
+
+Line-anchored text edits for Common Lisp. Validate edits against an exact
+observed snapshot, restrict their targets to observed lines, and apply them in
+original-line coordinates. Use callbacks to publish with a final revision check.
+
+* Install and test
+
+Make this directory available to ASDF and load =cl-hashline=. Runtime dependencies
+are Ironclad, Babel and Structlisp; the test system also requires FiveAM.
+
+#+begin_src lisp
+(asdf:load-system "cl-hashline")
+(asdf:test-system "cl-hashline")
+#+end_src
+
+For an SBCL with ASDF and the dependencies configured:
+
+#+begin_src sh
+sbcl --non-interactive --eval '(require :asdf)' \
+  --eval '(asdf:test-system "cl-hashline")'
+#+end_src
+
+* Edit a snapshot
+
+Pass keyword plists to =edit-text=. Line numbers start at one; ranges include
+both endpoints. =visible-lines= is a Structlisp integer interval set with
+half-open bounds. To make lines 1 through 3 visible, use =[1,4)=.
+
+Supply =split-lines= as a function accepting a string and returning a vector
+of logical lines. Remove CRLF terminators, preserve interior blank lines, return
+=#()= for empty text, and omit a phantom empty line after a final newline.
+
+#+begin_src lisp
+(let* ((text (format nil "alpha~%beta~%gamma~%"))
+       (visible (structlisp:make-integer-interval-set
+                 :intervals '((1 . 4))))
+       (operations
+         (list (list :op ':replace-lines
+                     :start-line 2 :end-line 2
+                     :start-anchor (cl-hashline:line-anchor "beta")
+                     :end-anchor (cl-hashline:line-anchor "beta")
+                     :content "BETA"))))
+  (cl-hashline:edit-text text operations
+                        :visible-lines visible
+                        :split-lines #'my-split-lines))
+;; => "alpha\nBETA\ngamma\n" (with actual LF characters)
+;; => a list of normalized operation plists
+#+end_src
+
+=my-split-lines= denotes your application's splitter.
+
+| Operation       | Fields                               |
+|-----------------+--------------------------------------|
+| =replace-lines= | =start-line=, =end-line=, =content=   |
+| =delete-lines=  | =start-line=, =end-line=              |
+| =insert-before= | =line=, =content=                    |
+| =insert-after=  | =line=, =content=                    |
+| =replace-empty= | =content=                            |
+
+Prefix field names and operation names with a colon in plists. Range operations
+accept optional =start-anchor= and =end-anchor=; insertions accept =anchor=.
+Use =replace-empty= alone against an empty snapshot.
+
+=line-anchor= returns the first four uppercase hexadecimal digits of the
+UTF-8 line's SHA-256 hash. Anchors must identify one line within
+=anchor-maximum-offset= of the requested line, three by default. Nearby duplicate
+matches are ambiguous even when the requested line matches. Corrected targets
+must also be visible. These short anchors catch transcription errors; use the
+exact snapshot revision to detect stale data.
+
+All edits refer to the original snapshot. Overlapping targets and repeated
+insertion anchors signal conditions. Range visibility must cover every target
+line, including interior lines. Empty replacement text deletes the target range.
+
+The engine preserves the original LF or CRLF convention and terminal-newline
+state. Deleting all lines produces an empty string. =replace-empty= uses its
+content's convention and terminal-newline state. Mixed LF/CRLF in the base
+snapshot or =replace-empty= content signals =mixed-line-endings=. Replacement
+and insertion content is converted to the base snapshot's line endings.
+
+The second return value contains normalized plists with =kind= (=replace=,
+=delete=, =insert-before=, =insert-after=, or =replace-empty=), inclusive =start=
+and =end=, a list of logical =lines=, and a =summary= string. Empty-resource edits
+also include =line-ending= and =final-newline-p=.
+
+Use =line-ending=, =mixed-line-endings-p=, =final-newline-p= and =join-lines= to
+inspect or construct text with the same newline rules.
+
+* Publish with a final revision check
+
+Keep observation state, exact revisions, bounded reads, temporary storage and
+atomic replacement in your application. =publish-edit= coordinates callbacks:
+
+#+begin_src lisp
+(cl-hashline:publish-edit
+ :base observed-snapshot
+ :content edited-text
+ :stage #'write-staged-content
+ :observe #'read-current-snapshot
+ :same-p #'snapshot-revisions-equal-p
+ :publish #'atomically-publish-staged-content
+ :verify #'published-content-equal-p
+ :cleanup #'remove-staged-content)
+#+end_src
+
+=stage(content)= returns a staging token. Then =observe()= returns the current
+snapshot and =same-p(current, base)= checks exact revision equality immediately
+before =publish(token)=. =publish= returns the published snapshot;
+=verify(published, content)= checks its content. On success, =publish-edit=
+returns that snapshot.
+
+=cleanup(token)= is called on every exit after staging returns, including
+success, stale revisions, callback failures and failed verification. If staging
+fails before returning a token, clean up inside your staging callback. Provide
+atomic replacement in =publish= and suitable synchronization if other writers
+can modify storage between the revision check and publication.
+
+* Conditions
+
+All library conditions inherit from =hashline-error=.
+
+- =invalid-operation=: =operation=, =field=, =value=, =reason=.
+- =unseen-lines=: =start-line=, =end-line=.
+- =anchor-error=: =anchor=, =requested-line=, =field=, =matches=, =reason=.
+- =overlapping-operations=: =left=, =right=.
+- =mixed-line-endings=.
+- =stale-revision=: =expected=, =actual=.
+- =publication-error=: =actual=.
+
+Accessors use the condition name as a prefix, for example
+=cl-hashline:anchor-error-reason= and =cl-hashline:stale-revision-expected=.
+
+* License
+
+Copyright 2026 Lambda Symbolics OÜ.
+
+COLL-Attribution. See =LICENSE.lisp= for the authoritative terms.
+The template is the COLL-Attribution variant used by
+[[https://github.com/lambda-symbolics/cl-skills/tree/3c219ae44379a1891bbd8f374692763cae9215f8][cl-skills at 3c219ae44379a1891bbd8f374692763cae9215f8]].
+
+Extracted from Autolith's workspace text-edit implementation. See =NOTICE=
+for the original ISC notice.
