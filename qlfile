@@ -1,0 +1,4 @@
+ql babel 2026-01-01
+ql fiveam 2026-01-01
+ql ironclad 2026-01-01
+git structlisp https://github.com/lambda-symbolics/structlisp.git :ref 66bbfbe947b69f3105f71f5e4293637decc91746
