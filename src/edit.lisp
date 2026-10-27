@@ -18,7 +18,7 @@
   (unless (and (edit--proper-list-p operation) (evenp (length operation)))
     (edit--invalid operation ':malformed-plist))
   (let ((seen nil))
-    (loop for (key value) on operation by #'cddr
+    (loop for (key value) on operation by (lambda (tail) (nthcdr 2 tail))
           do (unless (member key allowed)
                (edit--invalid operation ':unsupported-field :field key :value value))
              (when (member key seen)
