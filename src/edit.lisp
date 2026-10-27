@@ -39,7 +39,7 @@
   "Read a required positive original line number."
   (edit--field operation field
                :predicate (lambda (value) (and (integerp value) (plusp value)))
-               :reason ':invalid-line))
+               :reason    ':invalid-line))
 
 (defun edit--content (operation &key non-empty-p)
   "Read replacement or insertion content from OPERATION."
@@ -47,7 +47,7 @@
                :predicate (lambda (value)
                             (and (stringp value)
                                  (or (not non-empty-p) (plusp (length value)))))
-               :reason ':invalid-content))
+               :reason    ':invalid-content))
 
 (defun edit--anchor (operation field)
   "Read an optional four-hex FIELD and normalize it to uppercase."
@@ -107,7 +107,7 @@
     (edit--invalid operation ':malformed-plist))
   (let ((name (getf operation :op)))
     (unless (member name '(:replace-lines :delete-lines :insert-before
-                          :insert-after :replace-empty))
+                           :insert-after :replace-empty))
       (edit--invalid operation ':unknown-operation :field ':op :value name))
     (case name
       (:replace-empty
@@ -118,10 +118,10 @@
          (when (mixed-line-endings-p content)
            (error 'mixed-line-endings))
          (list :kind ':replace-empty :start 0 :end 0
-               :lines (coerce (edit--split-lines content split-lines) 'list)
-               :line-ending (line-ending content)
+               :lines           (coerce (edit--split-lines content split-lines) 'list)
+               :line-ending     (line-ending content)
                :final-newline-p (final-newline-p content)
-               :summary "replace-empty")))
+               :summary         "replace-empty")))
       ((:replace-lines :delete-lines)
        (let ((replace-p (eq name ':replace-lines)))
          (edit--validate-fields
@@ -141,9 +141,9 @@
            (unless (structlisp:integer-interval-set-covers-p visible start (1+ end))
              (error 'unseen-lines :start-line start :end-line end))
            (list :kind (if replace-p ':replace ':delete) :start start :end end
-                 :lines (when replace-p
-                          (coerce (edit--split-lines (edit--content operation) split-lines)
-                                  'list))
+                 :lines   (when replace-p
+                            (coerce (edit--split-lines (edit--content operation) split-lines)
+                                    'list))
                  :summary (format nil "~(~A~) ~D-~D" name start end)))))
       ((:insert-before :insert-after)
        (edit--validate-fields operation '(:op :line :anchor :content))
@@ -154,9 +154,9 @@
          (unless (structlisp:integer-interval-set-contains-p visible line)
            (error 'unseen-lines :start-line line :end-line line))
          (list :kind name :start line :end line
-               :lines (coerce (edit--split-lines
-                               (edit--content operation :non-empty-p t) split-lines)
-                              'list)
+               :lines   (coerce (edit--split-lines
+                                 (edit--content operation :non-empty-p t) split-lines)
+                                'list)
                :summary (format nil "~(~A~) ~D" name line)))))))
 
 (defun edit--normalize-operations (operations lines &key visible split-lines maximum-offset)

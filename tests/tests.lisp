@@ -1,6 +1,7 @@
 (in-package #:cl-hashline)
 
 (fiveam:def-suite hashline-tests)
+
 (fiveam:in-suite hashline-tests)
 
 (defun test--split-lines (text)
@@ -33,7 +34,7 @@
                                 visible
                                 (test--visible
                                  (cons 1 (1+ (length (test--split-lines text))))))
-             :split-lines #'test--split-lines))
+             :split-lines   #'test--split-lines))
 
 (fiveam:test anchors-and-line-conventions
   (fiveam:is (string= "E3B0" (line-anchor "")))
@@ -54,15 +55,15 @@
 (fiveam:test edit-operation-table
   (let ((text (test--text "a" "b" "c")))
     (dolist (case '(((:op :replace-lines :start-line 2 :end-line 2 :content "x")
-                    ("a" "x" "c") :replace 2 2 ("x"))
-                   ((:op :delete-lines :start-line 2 :end-line 2)
-                    ("a" "c") :delete 2 2 nil)
-                   ((:op :replace-lines :start-line 2 :end-line 2 :content "")
-                    ("a" "c") :replace 2 2 nil)
-                   ((:op :insert-before :line 2 :content "x")
-                    ("a" "x" "b" "c") :insert-before 2 2 ("x"))
-                   ((:op :insert-after :line 2 :content "x")
-                    ("a" "b" "x" "c") :insert-after 2 2 ("x"))))
+                     ("a" "x" "c") :replace 2 2 ("x"))
+                    ((:op :delete-lines :start-line 2 :end-line 2)
+                     ("a" "c") :delete 2 2 nil)
+                    ((:op :replace-lines :start-line 2 :end-line 2 :content "")
+                     ("a" "c") :replace 2 2 nil)
+                    ((:op :insert-before :line 2 :content "x")
+                     ("a" "x" "b" "c") :insert-before 2 2 ("x"))
+                    ((:op :insert-after :line 2 :content "x")
+                     ("a" "b" "x" "c") :insert-after 2 2 ("x"))))
       (destructuring-bind (operation expected kind start end lines) case
         (multiple-value-bind (result normalized) (test--edit text (list operation))
           (fiveam:is (string= (apply #'test--text expected) result))
@@ -158,7 +159,7 @@
       (test--edit "" (list (list :op ':replace-empty :content mixed)) nil))))
 
 (fiveam:test anchor-correction-and-ambiguity
-  (let* ((text (test--text "a" "b" "c" "d" "e" "f" "g"))
+  (let* ((text   (test--text "a" "b" "c" "d" "e" "f" "g"))
          (anchor (line-anchor "d")))
     (dolist (requested '(1 4 7))
       (multiple-value-bind (result normalized)
@@ -186,53 +187,53 @@
 
 (fiveam:test overlaps-rejected
   (dolist (operations '(((:op :delete-lines :start-line 1 :end-line 2)
-                        (:op :replace-lines :start-line 2 :end-line 3 :content "x"))
-                       ((:op :delete-lines :start-line 1 :end-line 2)
-                        (:op :insert-before :line 2 :content "x"))
-                       ((:op :insert-before :line 2 :content "x")
-                        (:op :insert-before :line 2 :content "y"))
-                       ((:op :insert-before :line 2 :content "x")
-                        (:op :insert-after :line 2 :content "y"))))
+                         (:op :replace-lines :start-line 2 :end-line 3 :content "x"))
+                        ((:op :delete-lines :start-line 1 :end-line 2)
+                         (:op :insert-before :line 2 :content "x"))
+                        ((:op :insert-before :line 2 :content "x")
+                         (:op :insert-before :line 2 :content "y"))
+                        ((:op :insert-before :line 2 :content "x")
+                         (:op :insert-after :line 2 :content "y"))))
     (fiveam:signals overlapping-operations
       (test--edit (test--text "a" "b" "c") operations))))
 
 (fiveam:test publication-lifecycle
   (dolist (mode '(:success :stale :stage-failure :observe-failure :publish-failure :verify-failure :mismatch))
-    (let ((events nil)
-          (base (list :revision "exact-base"))
-          (current (list :revision "exact-current"))
+    (let ((events    nil)
+          (base      (list :revision "exact-base"))
+          (current   (list :revision "exact-current"))
           (published (list :revision "published"))
-          (token (list :temporary "staged")))
+          (token     (list :temporary "staged")))
       (labels ((record (event) (push event events))
 
                (perform ()
                  (publish-edit
                   :base base :content "new"
-                  :stage (lambda (content)
-                           (fiveam:is (string= "new" content))
-                           (record ':stage)
-                           (when (eq mode ':stage-failure) (error 'simple-error))
-                           token)
+                  :stage   (lambda (content)
+                             (fiveam:is (string= "new" content))
+                             (record ':stage)
+                             (when (eq mode ':stage-failure) (error 'simple-error))
+                             token)
                   :observe (lambda ()
                              (record ':observe)
                              (when (eq mode ':observe-failure) (error 'simple-error))
                              current)
-                  :same-p (lambda (actual expected)
-                            (record ':same-p)
-                            (fiveam:is (eq current actual))
-                            (fiveam:is (eq base expected))
-                            (not (eq mode ':stale)))
+                  :same-p  (lambda (actual expected)
+                             (record ':same-p)
+                             (fiveam:is (eq current actual))
+                             (fiveam:is (eq base expected))
+                             (not (eq mode ':stale)))
                   :publish (lambda (actual-token)
                              (record ':publish)
                              (fiveam:is (eq token actual-token))
                              (when (eq mode ':publish-failure) (error 'simple-error))
                              published)
-                  :verify (lambda (actual content)
-                            (record ':verify)
-                            (fiveam:is (eq published actual))
-                            (fiveam:is (string= "new" content))
-                            (when (eq mode ':verify-failure) (error 'simple-error))
-                            (not (eq mode ':mismatch)))
+                  :verify  (lambda (actual content)
+                             (record ':verify)
+                             (fiveam:is (eq published actual))
+                             (fiveam:is (string= "new" content))
+                             (when (eq mode ':verify-failure) (error 'simple-error))
+                             (not (eq mode ':mismatch)))
                   :cleanup (lambda (actual-token)
                              (record ':cleanup)
                              (fiveam:is (eq token actual-token))))))
@@ -252,11 +253,16 @@
            (fiveam:signals error (perform))))
         (fiveam:is
          (equal (case mode
-                  (:stage-failure '(:stage))
-                  (:observe-failure '(:stage :observe :cleanup))
-                  (:stale '(:stage :observe :same-p :cleanup))
-                  (:publish-failure '(:stage :observe :same-p :publish :cleanup))
-                  (otherwise '(:stage :observe :same-p :publish :verify :cleanup)))
+                  (:stage-failure
+                   '(:stage))
+                  (:observe-failure
+                   '(:stage :observe :cleanup))
+                  (:stale
+                   '(:stage :observe :same-p :cleanup))
+                  (:publish-failure
+                   '(:stage :observe :same-p :publish :cleanup))
+                  (otherwise
+                   '(:stage :observe :same-p :publish :verify :cleanup)))
                 (reverse events)))))))
 
 (defun run-tests ()
