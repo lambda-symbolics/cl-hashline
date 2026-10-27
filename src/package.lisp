@@ -1,4 +1,5 @@
 (defpackage #:cl-hashline
+  (:documentation "Line-anchored text edits checked against an observed snapshot and its revision.")
   (:use #:cl)
   (:export #:line-anchor
            #:line-ending
